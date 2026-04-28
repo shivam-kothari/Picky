@@ -1,0 +1,38 @@
+# Picky - Cursor Rules
+
+Always reference @picky-prd-v2.md for feature scope and behavior.
+If a request conflicts with the PRD, flag it before writing code.
+
+## Brand
+- Name: Picky
+- Tone: Meticulous and Premium
+- Voice in UI copy: declarative, concise, confident
+
+## Design Language
+- Apple minimalism: prioritize whitespace, bold typography, and smooth transitions.
+- Background must be pure black (#000000). Foreground must be pure white (#FFFFFF).
+- Do not introduce gray colors except a very subtle border token.
+- Typography should use Inter from next/font.
+- Use Framer Motion for interaction and section transitions.
+
+## Criteria System
+- Keep criteria in a single typed source of truth (for example: src/lib/criteria.ts).
+- Each criterion must include: id, label, negativePrompt.
+- Gemini prompts must be assembled from active criteria negativePrompt values.
+- Do not hardcode dietary logic inside UI components.
+- Initial standards must include: Vegan, Kosher, No Meat, No Dairy, No Peanuts, No Shellfish, No Gluten.
+
+## Labor Illusion
+- Every scan interaction must take at least 2500ms before verdict display.
+- Status messages must follow this exact order:
+  1. Ingesting menu data...
+  2. Applying your exact standards...
+  3. Hunting for hidden non-compliances...
+  4. Verifying culinary integrity...
+  5. Selection curated.
+- Display one status message at a time with cross-fade transitions.
+
+## Stack and conventions
+- Next.js App Router + Tailwind CSS + Shadcn UI + Framer Motion.
+- TypeScript strict mode; avoid any.
+- Server Components by default; use "use client" only where interaction is required.
