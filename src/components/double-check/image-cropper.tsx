@@ -1,6 +1,6 @@
-import { useState, useCallback } from "react";
-import Cropper from "react-easy-crop";
-import type { Area } from "react-easy-crop";
+import { useState, useRef } from "react";
+import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import { Check, X } from "lucide-react";
 
 type ImageCropperProps = {
@@ -9,70 +9,79 @@ type ImageCropperProps = {
   onCancel: () => void;
 };
 
-// Helper function to create a cropped image
-async function getCroppedImg(imageSrc: string, pixelCrop: Area): Promise<Blob> {
-  const image = new Image();
-  image.src = imageSrc;
-  
+async function getCroppedImg(image: HTMLImageElement, pixelCrop: PixelCrop): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("No 2d context");
+  }
+
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
+
+  canvas.width = Math.floor(pixelCrop.width * scaleX);
+  canvas.height = Math.floor(pixelCrop.height * scaleY);
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x * scaleX,
+    pixelCrop.y * scaleY,
+    pixelCrop.width * scaleX,
+    pixelCrop.height * scaleY,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
   return new Promise((resolve, reject) => {
-    image.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-
-      if (!ctx) {
-        return reject(new Error("No 2d context"));
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Canvas is empty"));
+        return;
       }
-
-      canvas.width = pixelCrop.width;
-      canvas.height = pixelCrop.height;
-
-      ctx.drawImage(
-        image,
-        pixelCrop.x,
-        pixelCrop.y,
-        pixelCrop.width,
-        pixelCrop.height,
-        0,
-        0,
-        pixelCrop.width,
-        pixelCrop.height
-      );
-
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          reject(new Error("Canvas is empty"));
-          return;
-        }
-        resolve(blob);
-      }, "image/jpeg", 0.9);
-    };
-    image.onerror = () => reject(new Error("Failed to load image"));
+      resolve(blob);
+    }, "image/jpeg", 0.9);
   });
 }
 
 export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCropperProps) {
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [isProcessing, setIsProcessing] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-  const onCropChange = useCallback((location: { x: number; y: number }) => {
-    setCrop(location);
-  }, []);
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = e.currentTarget;
+    
+    // Create an initial rectangle roughly 9:16 ratio to mimic a phone screen,
+    // but keep it flexible so the user can drag handles freely.
+    let cropWidth = width * 0.8;
+    let cropHeight = cropWidth * (16 / 9);
 
-  const onZoomChange = useCallback((newZoom: number) => {
-    setZoom(newZoom);
-  }, []);
+    if (cropHeight > height * 0.8) {
+      cropHeight = height * 0.8;
+      cropWidth = cropHeight * (9 / 16);
+    }
 
-  const onCropCompleteHandler = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  }, []);
+    const initialCrop: Crop = {
+      unit: "px",
+      x: (width - cropWidth) / 2,
+      y: (height - cropHeight) / 2,
+      width: cropWidth,
+      height: cropHeight,
+    };
+    
+    setCrop(initialCrop);
+    setCompletedCrop(initialCrop as PixelCrop);
+  };
 
   const handleConfirm = async () => {
-    if (!croppedAreaPixels) return;
+    if (!completedCrop || !imgRef.current) return;
     try {
       setIsProcessing(true);
-      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      const croppedBlob = await getCroppedImg(imgRef.current, completedCrop);
       onCropComplete(croppedBlob);
     } catch (e) {
       console.error(e);
@@ -82,22 +91,24 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
 
   return (
     <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-      <div className="relative flex-1">
-        <Cropper
-          image={imageSrc}
+      <div className="flex-1 overflow-hidden flex items-center justify-center p-4">
+        <ReactCrop
           crop={crop}
-          zoom={zoom}
-          aspect={undefined} // Free form cropping
-          onCropChange={onCropChange}
-          onCropComplete={onCropCompleteHandler}
-          onZoomChange={onZoomChange}
-          classes={{
-            containerClassName: "absolute inset-0",
-            cropAreaClassName: "border-2 border-white/50",
-          }}
-        />
+          onChange={(_, percentCrop) => setCrop(percentCrop)}
+          onComplete={(c) => setCompletedCrop(c)}
+          className="max-h-full"
+        >
+          <img
+            ref={imgRef}
+            alt="Crop me"
+            src={imageSrc}
+            onLoad={onImageLoad}
+            className="max-h-full max-w-full object-contain"
+            style={{ maxHeight: "calc(100vh - 150px)" }}
+          />
+        </ReactCrop>
       </div>
-      <div className="bg-black/90 pb-safe pt-4 px-6 flex justify-between items-center h-24 border-t border-white/10">
+      <div className="bg-black/90 pb-safe pt-4 px-6 flex justify-between items-center h-24 border-t border-white/10 shrink-0">
         <button
           onClick={onCancel}
           disabled={isProcessing}
@@ -105,7 +116,7 @@ export function ImageCropper({ imageSrc, onCropComplete, onCancel }: ImageCroppe
         >
           <X className="h-6 w-6" />
         </button>
-        <div className="text-white/60 text-sm font-medium">Crop Menu</div>
+        <div className="text-white/60 text-sm font-medium">Adjust Crop</div>
         <button
           onClick={handleConfirm}
           disabled={isProcessing}
