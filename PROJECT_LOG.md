@@ -2,7 +2,7 @@
 
 > Durable reference for the Double Check codebase: what exists, why it exists, what we fixed, and how to run it. Read alongside `double-check-prd.md` (feature source of truth) and `.cursorrules` (coding conventions).
 
-**Last updated:** 2026-04-28
+**Last updated:** 2026-04-29
 **Next.js:** 16.2.4 (App Router, webpack dev, Turbopack build)
 **React:** 19.2.4
 **Tailwind:** v4 (via `@import "tailwindcss"`)
@@ -105,11 +105,12 @@ Double Check/
    │  └─ page.tsx                # tab controller, criteria sync, history state
    ├─ components/
    │  ├─ double-check/
-   │  │  ├─ top-nav.tsx          # "DOUBLE CHECK" wordmark
-   │  │  ├─ bottom-nav.tsx       # tab switcher
-   │  │  ├─ home-tab.tsx         # welcome, scan button, history/standards shortcuts
+   │  │  ├─ top-nav.tsx          # streamlined wordmark (icons removed)
+   │  │  ├─ bottom-nav.tsx       # tab switcher + global camera trigger
+   │  │  ├─ home-tab.tsx         # welcome, scan button (direct camera), history/standards shortcuts
    │  │  ├─ standards-tab.tsx    # criteria selection list
    │  │  ├─ scanner-tab.tsx      # image prep + /api/scan + dot-loading sequence
+   │  │  ├─ image-cropper.tsx    # free-form rectangular crop (react-image-crop)
    │  │  └─ verdict-card.tsx     # item-by-item safety analysis display
    │  ├─ providers/
    │  │  └─ motion-provider.tsx  # Framer Motion wrapper
@@ -526,7 +527,19 @@ These are staged; each is a discrete next unit of work.
 
 ---
 
-## 12. Pointers
+## 13. Change log (Finalization & UI Hardening, 2026-04-29)
+
+- **feat(ai):** implemented two-layer culinary reasoning to eliminate universal over-caution bias. The AI now defaults to `SAFE` for obvious dishes (like Indian vegetarian) by leveraging its internal culinary knowledge as valid evidence.
+- **feat(ui):** streamlined TopNav by removing unused menu/profile icons for a cleaner, centered branding.
+- **feat(ui):** re-engineered Scanner flow to bypass intermediate screens. Clicking "Scanner" in the bottom nav or home tab now launches the native camera instantly.
+- **feat(ui):** added free-form rectangular cropping via `react-image-crop`. Users can now adjust the crop box freely to isolate menu sections, improving analysis precision and speed.
+- **fix(nav):** implemented a global hidden camera input in `page.tsx` to ensure synchronous, browser-trusted interaction across all scan buttons.
+- **infra:** successfully deployed to Vercel with integrated GitHub CI/CD and configured `GEMINI_API_KEY`.
+- **verify:** `tsc` and `eslint` clean; port 3000 terminated; workspace verified clean.
+
+---
+
+## 14. Pointers
 
 - Feature scope / voice: `double-check-prd.md`
 - Coding style / guardrails: `.cursorrules`
