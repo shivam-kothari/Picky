@@ -1,8 +1,8 @@
-# Picky
+# Double Check
 
 > Precision-driven dining for the uncompromising.
 
-Picky is a premium, mobile-first web app that audits menus against a user's exact dietary standards. Pick your standards (Vegan, Kosher, No Peanuts, …), scan a dish, watch the 3-second "Labor Illusion" thinking sequence, and receive a `SAFE` or `VETOED` verdict with a concise reason. If vetoed, the **Interrogator** hands you a one-tap French or English script for waitstaff.
+Double Check is a premium, mobile-first web app that audits menus against a user's exact dietary standards. Pick your standards (Vegan, Kosher, No Peanuts, …), scan a dish, and receive an item-by-item analysis categorized as `Okay to Eat`, `Ask Waitstaff`, or `Avoid`.
 
 ## Stack
 
@@ -37,7 +37,7 @@ npx tsc --noEmit  # type-check
 
 ## Reference docs (in repo)
 
-- **`picky-prd-v2.md`** — product requirements (feature source of truth)
+- **`double-check-prd.md`** — product requirements (feature source of truth)
 - **`.cursorrules`** — coding/design/tone guardrails
 - **`PROJECT_LOG.md`** — architecture, audit history, issues + fixes, runbook, roadmap
 - **`AGENTS.md`** — note on working with Next.js 16 APIs

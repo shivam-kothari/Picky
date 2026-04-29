@@ -19,18 +19,16 @@ export type ScanRequest = {
   };
 };
 
-export type ScanVerdict = {
-  status: ScanStatus;
+export type MenuItemVerdict = {
   dishName: string;
-  confidence: ConfidenceLevel;
+  status: ScanStatus;
+  reason: string;
+};
+
+export type ScanVerdict = {
   summary: string;
-  primaryReason: string;
+  items: MenuItemVerdict[];
   selectedCriteria: string[];
-  triggeredCriteria: string[];
-  hiddenRisks: string[];
-  visibleEvidence: string[];
-  missingEvidence: string[];
-  waitstaffQuestion: string;
 };
 
 export type ValidatedScanRequest =
@@ -51,73 +49,21 @@ const criterionIds = new Set(CRITERIA.map((criterion) => criterion.id));
 export const scanVerdictResponseSchema = {
   type: "OBJECT",
   properties: {
-    status: {
-      type: "STRING",
-      enum: SCAN_STATUSES,
-    },
-    dishName: {
-      type: "STRING",
-    },
-    confidence: {
-      type: "STRING",
-      enum: CONFIDENCE_LEVELS,
-    },
-    summary: {
-      type: "STRING",
-    },
-    primaryReason: {
-      type: "STRING",
-    },
-    selectedCriteria: {
+    summary: { type: "STRING" },
+    items: {
       type: "ARRAY",
-      items: { type: "STRING" },
-    },
-    triggeredCriteria: {
-      type: "ARRAY",
-      items: { type: "STRING" },
-    },
-    hiddenRisks: {
-      type: "ARRAY",
-      items: { type: "STRING" },
-    },
-    visibleEvidence: {
-      type: "ARRAY",
-      items: { type: "STRING" },
-    },
-    missingEvidence: {
-      type: "ARRAY",
-      items: { type: "STRING" },
-    },
-    waitstaffQuestion: {
-      type: "STRING",
+      items: {
+        type: "OBJECT",
+        properties: {
+          dishName: { type: "STRING" },
+          status: { type: "STRING", enum: SCAN_STATUSES },
+          reason: { type: "STRING" },
+        },
+        required: ["dishName", "status", "reason"],
+      },
     },
   },
-  required: [
-    "status",
-    "dishName",
-    "confidence",
-    "summary",
-    "primaryReason",
-    "selectedCriteria",
-    "triggeredCriteria",
-    "hiddenRisks",
-    "visibleEvidence",
-    "missingEvidence",
-    "waitstaffQuestion",
-  ],
-  propertyOrdering: [
-    "status",
-    "dishName",
-    "confidence",
-    "summary",
-    "primaryReason",
-    "selectedCriteria",
-    "triggeredCriteria",
-    "hiddenRisks",
-    "visibleEvidence",
-    "missingEvidence",
-    "waitstaffQuestion",
-  ],
+  required: ["summary", "items"],
 } as const;
 
 export function validateScanRequest(input: unknown): ValidatedScanRequest {
@@ -170,105 +116,49 @@ export function normalizeScanVerdict(
     return null;
   }
 
-  const status = input.status;
-  const confidence = input.confidence;
+  const summary = readString(input.summary, "Double Check could not summarize the scan.");
+  const selectedIds = selectedCriteria.map((c) => c.id);
 
-  if (!isScanStatus(status) || !isConfidenceLevel(confidence)) {
-    return null;
+  let items: MenuItemVerdict[] = [];
+  if (Array.isArray(input.items)) {
+    items = input.items.map((item: Record<string, unknown>) => ({
+      dishName: readString(item.dishName, "Unknown Item"),
+      status: isScanStatus(item.status) ? item.status : "VERIFY",
+      reason: readString(item.reason, "No reason provided."),
+    }));
   }
 
-  const selectedIds = selectedCriteria.map((criterion) => criterion.id);
-  const selectedIdSet = new Set(selectedIds);
-
-  const triggeredCriteria = readStringArray(input.triggeredCriteria).filter((id) =>
-    selectedIdSet.has(id)
-  );
-
   return {
-    status,
-    confidence,
-    dishName: readString(input.dishName, "Unidentified dish"),
-    summary: readString(input.summary, "Picky could not summarize the scan."),
-    primaryReason: readString(
-      input.primaryReason,
-      "The image did not provide enough reliable evidence for a safe verdict."
-    ),
+    summary,
+    items,
     selectedCriteria: selectedIds,
-    triggeredCriteria,
-    hiddenRisks: readStringArray(input.hiddenRisks).slice(0, 6),
-    visibleEvidence: readStringArray(input.visibleEvidence).slice(0, 6),
-    missingEvidence: readStringArray(input.missingEvidence).slice(0, 6),
-    waitstaffQuestion: readString(
-      input.waitstaffQuestion,
-      buildWaitstaffQuestion(selectedCriteria)
-    ),
   };
 }
 
 export function createVerifyVerdict(
   selectedCriteria: Criterion[] | string[],
-  primaryReason: string,
-  options?: {
-    dishName?: string;
-    summary?: string;
-    missingEvidence?: string[];
-  }
+  summary: string
 ): ScanVerdict {
   const ids = selectedCriteria.map((criterion) =>
     typeof criterion === "string" ? criterion : criterion.id
   );
 
   return {
-    status: "VERIFY",
-    dishName: options?.dishName ?? "Unverified dish",
-    confidence: "low",
-    summary:
-      options?.summary ??
-      "Picky needs a human confirmation before this can be treated as safe.",
-    primaryReason,
+    summary,
+    items: [],
     selectedCriteria: ids,
-    triggeredCriteria: [],
-    hiddenRisks: [],
-    visibleEvidence: [],
-    missingEvidence:
-      options?.missingEvidence ??
-      ["Ingredient list", "Sauce base", "Cooking fat", "Cross-contact controls"],
-    waitstaffQuestion:
-      selectedCriteria.length > 0
-        ? buildWaitstaffQuestion(selectedCriteria)
-        : "Which dietary standard should I verify for this dish?",
   };
 }
 
 export function createNoStandardsVerdict(): ScanVerdict {
   return {
-    status: "VERIFY",
-    dishName: "No standards selected",
-    confidence: "low",
-    summary: "Choose at least one standard before scanning.",
-    primaryReason: "Picky has no dietary rule to enforce yet.",
+    summary: "Double Check has no dietary rule to enforce yet. Choose at least one standard.",
+    items: [],
     selectedCriteria: [],
-    triggeredCriteria: [],
-    hiddenRisks: [],
-    visibleEvidence: [],
-    missingEvidence: ["Selected standards"],
-    waitstaffQuestion: "Which standard should this dish be checked against?",
   };
 }
 
-function buildWaitstaffQuestion(selectedCriteria: Criterion[] | string[]) {
-  const labels = selectedCriteria.map((criterion) =>
-    typeof criterion === "string"
-      ? criterion
-      : criterion.label
-  );
 
-  if (labels.length === 0) {
-    return "Could you confirm the full ingredient list and preparation method?";
-  }
-
-  return `Could you confirm whether this dish satisfies these standards: ${labels.join(", ")}?`;
-}
 
 function invalid(status: number, message: string): ValidatedScanRequest {
   return { ok: false, status, message };
@@ -286,12 +176,7 @@ function isScanStatus(input: unknown): input is ScanStatus {
   return typeof input === "string" && SCAN_STATUSES.includes(input as ScanStatus);
 }
 
-function isConfidenceLevel(input: unknown): input is ConfidenceLevel {
-  return (
-    typeof input === "string" &&
-    CONFIDENCE_LEVELS.includes(input as ConfidenceLevel)
-  );
-}
+
 
 function isImageMeta(input: unknown): input is NonNullable<ScanRequest["imageMeta"]> {
   if (!isRecord(input)) {
@@ -317,13 +202,4 @@ function readString(input: unknown, fallback: string) {
   return trimmed.length > 0 ? trimmed : fallback;
 }
 
-function readStringArray(input: unknown) {
-  if (!Array.isArray(input)) {
-    return [];
-  }
 
-  return input
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}

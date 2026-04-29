@@ -1,13 +1,13 @@
-# Product Requirements Document (PRD): Picky
+# Product Requirements Document (PRD): Double Check
 
 **Version:** 2.0
-**Brand Identity:** "Picky" — Precision-driven dining for the uncompromising.
+**Brand Identity:** "Double Check" — Precision-driven dining for the uncompromising.
 **Core Goal:** A modular menu-intelligence tool that filters culinary reality based on specific user standards (Vegetarian, Vegan, Kosher, Allergens).
 
 ---
 
 ## 1. Product Overview
-Picky is a premium mobile-first web app designed for the intentional diner. It leverages high-speed AI to audit complex menus, identifying hidden ingredients that violate a user's specific dietary criteria. It treats "pickiness" as a virtue of accuracy and health.
+Double Check is a premium mobile-first web app designed for the intentional diner. It leverages high-speed AI to audit complex menus, identifying hidden ingredients that violate a user's specific dietary criteria. It treats "accuracy" as a virtue.
 
 ## 2. Design & UX Philosophy
 * **Aesthetic:** Ultra-minimalist. High-contrast (Black & White). No generic food icons. Large, bold headings.

@@ -36,39 +36,40 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root,
-.dark {
-  --background: #000000;
-  --foreground: #ffffff;
-  --card: #000000;
-  --card-foreground: #ffffff;
-  --popover: #000000;
-  --popover-foreground: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #000000;
-  --secondary: #000000;
-  --secondary-foreground: #ffffff;
-  --muted: #0a0a0a;
-  --muted-foreground: #b3b3b3;
-  --accent: #0a0a0a;
-  --accent-foreground: #ffffff;
-  --destructive: #ff4d4d;
-  --destructive-foreground: #000000;
-  --border: #242424;
-  --input: #242424;
-  --ring: #ffffff;
+:root {
+  --background: #F9FAFB;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  --primary: #006B4D;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E5F5E0;
+  --secondary-foreground: #166534;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #E5F5E0;
+  --accent-foreground: #006B4D;
+  --destructive: #FEF2F2;
+  --destructive-foreground: #B91C1C;
+  --warning: #FFF7ED;
+  --warning-foreground: #C2410C;
+  --border: #E5E7EB;
+  --input: #D1D5DB;
+  --ring: #006B4D;
   --radius: 0.75rem;
 }
 
 @layer base {
   html,
   body {
-    background: #000000;
-    color: #ffffff;
+    background: var(--background);
+    color: var(--foreground);
   }
 
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
 
   body {
@@ -83,7 +84,7 @@
   }
 
   ::selection {
-    background: #ffffff;
-    color: #000000;
+    background: #006B4D;
+    color: #ffffff;
   }
 }

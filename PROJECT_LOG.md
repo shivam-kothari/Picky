@@ -1,6 +1,6 @@
-# Picky — Project Log
+# Double Check — Project Log
 
-> Durable reference for the Picky codebase: what exists, why it exists, what we fixed, and how to run it. Read alongside `picky-prd-v2.md` (feature source of truth) and `.cursorrules` (coding conventions).
+> Durable reference for the Double Check codebase: what exists, why it exists, what we fixed, and how to run it. Read alongside `double-check-prd.md` (feature source of truth) and `.cursorrules` (coding conventions).
 
 **Last updated:** 2026-04-28
 **Next.js:** 16.2.4 (App Router, webpack dev, Turbopack build)
@@ -12,7 +12,7 @@
 
 ## 1. Product snapshot
 
-**Picky** is a premium, mobile-first, single-page web app. It treats "pickiness" as a virtue of accuracy. The user picks dietary standards ("Vegan", "No Shellfish", etc.), hits a stark `SCAN` button, chooses or captures a dish/menu image, watches a deliberately-paced "thinking" sequence (the _Labor Illusion_), and receives a structured `SAFE`, `VETOED`, or conservative `VERIFY` verdict. If a dish needs confirmation, they can hand a French or English script to waitstaff.
+**Double Check** is a premium, mobile-first, single-page web app. It treats "accuracy" as a virtue. The user picks dietary standards ("Vegan", "No Shellfish", etc.), hits a stark `SCAN` button, chooses or captures a menu image, and receives a structured item-by-item analysis categorized into `Okay to Eat`, `Ask Waitstaff`, or `Avoid`.
 
 - **Aesthetic:** Strict pure black (`#000000`) / pure white (`#FFFFFF`). No grays outside a single hairline token.
 - **Motion:** Framer Motion with an Apple-style cubic-bezier `[0.22, 1, 0.36, 1]`.
@@ -48,8 +48,8 @@ Author files via ApplyPatch:
 - `src/components/picky/verdict-card.tsx` — deterministic mock SAFE/VETOED verdict.
 - `src/app/page.tsx` — composes header + criteria + scanner; scroll progress bar.
 - `src/app/layout.tsx` — Inter variable font, metadata (`title: "Picky"`), `antialiased`, `tracking-tight`.
-- `.cursorrules` — coding/design/tone guardrails referencing `@picky-prd-v2.md`.
-- `picky-prd-v2.md` — materialised from the one-shot generator `gemini-code-1776972778711.py`.
+- `.cursorrules` — coding/design/tone guardrails referencing `@double-check-prd.md`.
+- `double-check-prd.md` — materialised from the one-shot generator `gemini-code-1776972778711.py`.
 
 ### Phase 2 — Stabilization loop (previous session)
 
@@ -83,8 +83,8 @@ Built the real end-to-end scan pipeline while keeping a conservative safety fall
 ### File tree (project-specific)
 
 ```
-PICKY/
-├─ picky-prd-v2.md              # PRD v2 (feature source of truth)
+Double Check/
+├─ double-check-prd.md           # PRD (feature source of truth)
 ├─ .cursorrules                  # coding/design/tone guardrails
 ├─ .env.example                  # server env template for Gemini
 ├─ AGENTS.md                     # "This is NOT the Next.js you know"
@@ -101,24 +101,27 @@ PICKY/
    │  ├─ api/
    │  │  └─ scan/route.ts        # POST /api/scan, validates request + returns ScanVerdict
    │  ├─ globals.css             # monochrome tokens (hex) + base layer
-   │  ├─ layout.tsx              # Inter, metadata, <html className="dark …">
-   │  └─ page.tsx                # composes sections, scroll progress
+   │  ├─ layout.tsx              # Inter, metadata, title: "Double Check"
+   │  └─ page.tsx                # tab controller, criteria sync, history state
    ├─ components/
-   │  ├─ picky/
-   │  │  ├─ picky-header.tsx     # scroll-reactive wordmark
-   │  │  ├─ criteria-list.tsx    # Shadcn Switch list
-   │  │  ├─ scan-panel.tsx       # image prep + /api/scan + Labor Illusion
-   │  │  ├─ verdict-card.tsx     # structured SAFE / VETOED / VERIFY display
-   │  │  └─ interrogator.tsx     # EN/FR waitstaff scripts (PRD §3.D)
-   │  └─ ui/
-   │     ├─ button.tsx           # Shadcn base-nova
+   │  ├─ double-check/
+   │  │  ├─ top-nav.tsx          # "DOUBLE CHECK" wordmark
+   │  │  ├─ bottom-nav.tsx       # tab switcher
+   │  │  ├─ home-tab.tsx         # welcome, scan button, history/standards shortcuts
+   │  │  ├─ standards-tab.tsx    # criteria selection list
+   │  │  ├─ scanner-tab.tsx      # image prep + /api/scan + dot-loading sequence
+   │  │  └─ verdict-card.tsx     # item-by-item safety analysis display
+   │  ├─ providers/
+   │  │  └─ motion-provider.tsx  # Framer Motion wrapper
+   │  └─ ui/                     # Shadcn primitives
+   │     ├─ button.tsx
    │     ├─ card.tsx
    │     ├─ separator.tsx
    │     └─ switch.tsx
    └─ lib/
-      ├─ criteria.ts             # Criterion[] policy source + InterrogatorScript per id
-      ├─ gemini-scan.ts          # server Gemini REST adapter + conservative fallbacks
-      ├─ image-prep.ts           # client image resize/compress to JPEG
+      ├─ criteria.ts             # Criterion[] policy source + scripts
+      ├─ gemini-scan.ts          # server Gemini REST adapter (temperature: 0.0)
+      ├─ image-prep.ts           # client image resize/grayscale/compress
       ├─ motion.ts               # Variants: fadeUp, stagger, crossfade
       ├─ scan.ts                 # ScanRequest / ScanVerdict contract + validators
       └─ utils.ts                # cn()
@@ -210,7 +213,7 @@ One message on screen at a time with `AnimatePresence mode="wait"` cross-fade.
 
 ## 4. PRD compliance matrix
 
-PRD reference: `picky-prd-v2.md`.
+PRD reference: `double-check-prd.md`.
 
 | PRD section | Requirement | Status | Where |
 |---|---|---|---|
@@ -321,7 +324,7 @@ Final `dev` script:
 
 ### G. Dead file
 
-`gemini-code-1776972778711.py` was a one-shot generator that had already produced `picky-prd-v2.md`. Deleted to reduce clutter; the PRD Markdown is the canonical source.
+`gemini-code-1776972778711.py` was a one-shot generator that had already produced `double-check-prd.md`. Deleted to reduce clutter; the PRD Markdown is the canonical source.
 
 ### H. Real scan pipeline, without adding an SDK dependency
 
@@ -525,7 +528,7 @@ These are staged; each is a discrete next unit of work.
 
 ## 12. Pointers
 
-- Feature scope / voice: `picky-prd-v2.md`
+- Feature scope / voice: `double-check-prd.md`
 - Coding style / guardrails: `.cursorrules`
 - Next.js 16 doc bundle (installed): `node_modules/next/dist/docs/01-app/`
 - Shadcn registry config: `components.json`

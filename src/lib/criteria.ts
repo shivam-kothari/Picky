@@ -53,6 +53,44 @@ export const CRITERIA: readonly Criterion[] = [
     },
   },
   {
+    id: "paleo",
+    label: "Paleo",
+    negativePrompt:
+      "Exclude all grains, legumes, dairy, refined sugar, and highly processed oils.",
+    hiddenRisks: [
+      "soy or peanut oil",
+      "refined sugar in sauces",
+      "legumes or peanuts",
+      "dairy finishes",
+      "grain-based thickeners",
+    ],
+    unsafeIfPresent: ["grains", "legumes", "dairy", "refined sugar", "soy", "peanuts"],
+    uncertainIfPossible: ["vegetable oil", "sauce thickener", "sweetener"],
+    script: {
+      en: "Is this dish free of grains, dairy, legumes, and refined sugars?",
+      fr: "Ce plat est-il sans céréales, produits laitiers, légumineuses et sucres raffinés ?",
+    },
+  },
+  {
+    id: "keto",
+    label: "Keto",
+    negativePrompt:
+      "Exclude high-carb foods like grains, sugar, fruit, and starchy vegetables.",
+    hiddenRisks: [
+      "sugar in marinades",
+      "starchy thickeners",
+      "sweet fruits",
+      "breaded coatings",
+      "root vegetables",
+    ],
+    unsafeIfPresent: ["sugar", "grains", "starchy vegetables", "sweet fruit"],
+    uncertainIfPossible: ["sauce sweetener", "marinade", "starchy vegetable base"],
+    script: {
+      en: "Does this dish contain any grains, starchy vegetables, or added sugar?",
+      fr: "Ce plat contient-il des céréales, des légumes féculents ou du sucre ajouté ?",
+    },
+  },
+  {
     id: "kosher",
     label: "Kosher",
     negativePrompt:

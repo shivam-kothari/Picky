@@ -1,10 +1,10 @@
-# Picky - Cursor Rules
+# Double Check - Cursor Rules
 
-Always reference @picky-prd-v2.md for feature scope and behavior.
+Always reference @double-check-prd.md for feature scope and behavior.
 If a request conflicts with the PRD, flag it before writing code.
 
 ## Brand
-- Name: Picky
+- Name: Double Check
 - Tone: Meticulous and Premium
 - Voice in UI copy: declarative, concise, confident
 
