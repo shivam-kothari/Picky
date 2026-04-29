@@ -5,13 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Image as ImageIcon, RotateCcw, Zap } from "lucide-react";
 
 import { prepareScanImage } from "@/lib/image-prep";
-import {
-  createNoStandardsVerdict,
-  createVerifyVerdict,
-  type ScanVerdict,
-} from "@/lib/scan";
+import { createNoStandardsVerdict, createVerifyVerdict, type ScanVerdict } from "@/lib/scan";
 
 import { VerdictCard } from "./verdict-card";
+import { ImageCropper } from "./image-cropper";
 
 type ScannerTabProps = {
   active: Set<string>;
@@ -34,6 +31,7 @@ export function ScannerTab({ active, pendingFile, clearPendingFile, onScanComple
   const [ticks, setTicks] = useState(0);
   const [success, setSuccess] = useState(false);
   const [result, setResult] = useState<ScanVerdict | null>(null);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   
   const messageIndex = Math.floor(ticks / 5) % SCANNING_MESSAGES.length;
   const dotsCount = ticks % 4;
@@ -120,14 +118,29 @@ export function ScannerTab({ active, pendingFile, clearPendingFile, onScanComple
 
   useEffect(() => {
     if (pendingFile && state === "idle") {
-      const file = pendingFile;
+      const url = URL.createObjectURL(pendingFile);
       clearPendingFile?.();
-      setTimeout(() => {
-        processFile(file).catch(console.error);
-      }, 0);
+      setTimeout(() => setCropImageSrc(url), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingFile, state]);
+
+  if (cropImageSrc) {
+    return (
+      <ImageCropper
+        imageSrc={cropImageSrc}
+        onCropComplete={(blob) => {
+          setCropImageSrc(null);
+          const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
+          setTimeout(() => processFile(file).catch(console.error), 0);
+        }}
+        onCancel={() => {
+          setCropImageSrc(null);
+          setState("idle");
+        }}
+      />
+    );
+  }
 
   if (state === "result" && result) {
     return (
