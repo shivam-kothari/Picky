@@ -13,7 +13,7 @@ export function HomeTab({ onTabChange }: HomeTabProps) {
       </div>
 
       <button
-        onClick={() => onTabChange("scan")}
+        onClick={() => document.getElementById("global-camera-input")?.click()}
         className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl p-8 flex flex-col items-center justify-center space-y-4 shadow-lg transition-transform active:scale-95"
       >
         <div className="bg-white/20 p-4 rounded-full">

@@ -21,7 +21,13 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
           return (
             <button
               key={id}
-              onClick={() => onTabChange(id)}
+              onClick={() => {
+                if (id === "scan") {
+                  document.getElementById("global-camera-input")?.click();
+                } else {
+                  onTabChange(id);
+                }
+              }}
               className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
               }`}

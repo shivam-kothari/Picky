@@ -16,6 +16,16 @@ export default function Home() {
   const [active, setActive] = useState<Set<string>>(new Set());
   const [isLoaded, setIsLoaded] = useState(false);
   const [history, setHistory] = useState<ScanVerdict[]>([]);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+
+  const handleGlobalFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPendingFile(file);
+      handleTabChange("scan");
+    }
+    e.target.value = "";
+  };
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -89,6 +99,14 @@ export default function Home() {
     <div className="flex flex-col min-h-[100dvh] bg-background">
       <TopNav />
       <main className="flex-1 flex flex-col relative pb-16">
+        <input 
+          type="file" 
+          id="global-camera-input" 
+          accept="image/*" 
+          capture="environment" 
+          className="hidden" 
+          onChange={handleGlobalFile} 
+        />
         <div className="flex-1 flex flex-col">
           {activeTab === "home" && <HomeTab onTabChange={handleTabChange} />}
           {activeTab === "standards" && (
@@ -101,6 +119,8 @@ export default function Home() {
           {activeTab === "scan" && (
             <ScannerTab 
               active={active} 
+              pendingFile={pendingFile}
+              clearPendingFile={() => setPendingFile(null)}
               onScanComplete={(verdict) => setHistory(prev => [verdict, ...prev])}
             />
           )}

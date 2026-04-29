@@ -15,6 +15,8 @@ import { VerdictCard } from "./verdict-card";
 
 type ScannerTabProps = {
   active: Set<string>;
+  pendingFile?: File | null;
+  clearPendingFile?: () => void;
   onScanComplete?: (verdict: ScanVerdict) => void;
 };
 
@@ -27,7 +29,7 @@ const SCANNING_MESSAGES = [
   "Verifying culinary integrity",
 ];
 
-export function ScannerTab({ active, onScanComplete }: ScannerTabProps) {
+export function ScannerTab({ active, pendingFile, clearPendingFile, onScanComplete }: ScannerTabProps) {
   const [state, setState] = useState<ScanState>("idle");
   const [ticks, setTicks] = useState(0);
   const [success, setSuccess] = useState(false);
@@ -41,21 +43,9 @@ export function ScannerTab({ active, onScanComplete }: ScannerTabProps) {
     return SCANNING_MESSAGES[messageIndex];
   }, [messageIndex, success]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const scanIdRef = useRef(0);
 
-  const handleScanClick = () => {
-    if (active.size === 0) {
-      setResult(createNoStandardsVerdict());
-      setState("result");
-      return;
-    }
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processFile = async (file: File) => {
 
     const scanId = scanIdRef.current + 1;
     scanIdRef.current = scanId;
@@ -65,7 +55,6 @@ export function ScannerTab({ active, onScanComplete }: ScannerTabProps) {
     setTicks(0);
     setResult(null);
     setState("scanning");
-    e.target.value = "";
 
     let prepared;
     try {
@@ -129,10 +118,24 @@ export function ScannerTab({ active, onScanComplete }: ScannerTabProps) {
     return () => clearInterval(interval);
   }, [state, success]);
 
+  useEffect(() => {
+    if (pendingFile && state === "idle") {
+      const file = pendingFile;
+      clearPendingFile?.();
+      setTimeout(() => {
+        processFile(file).catch(console.error);
+      }, 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFile, state]);
+
   if (state === "result" && result) {
     return (
       <div className="flex-1 bg-background p-6">
-        <VerdictCard result={result} onScanAgain={() => setState("idle")} />
+        <VerdictCard result={result} onScanAgain={() => {
+          setState("idle");
+          document.getElementById("global-camera-input")?.click();
+        }} />
       </div>
     );
   }
@@ -140,53 +143,22 @@ export function ScannerTab({ active, onScanComplete }: ScannerTabProps) {
   return (
     <div className="flex-1 bg-[#121212] flex flex-col relative overflow-hidden">
       <div className="flex-1 relative flex flex-col items-center justify-center p-6 w-full h-full">
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          ref={fileInputRef}
-          className="hidden"
-          onChange={handleFileChange}
-        />
         
         {state === "idle" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="absolute top-6 right-6">
-              <button className="h-10 w-10 rounded-full bg-black/40 flex items-center justify-center text-white border border-white/20">
-                <Zap className="h-5 w-5" />
-              </button>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-6">
+            <div className="h-20 w-20 bg-primary/20 rounded-full flex items-center justify-center text-primary">
+              <ImageIcon className="h-10 w-10" />
             </div>
-            
-            <div className="relative w-full max-w-sm aspect-[3/4] border-2 border-transparent">
-              {/* Corner brackets */}
-              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
-              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
-              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
-              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
-              
-              {/* Scanning laser line (purely visual) */}
-              <div className="absolute top-1/2 left-0 w-full h-[2px] bg-primary/80 shadow-[0_0_15px_rgba(0,107,77,0.8)]"></div>
+            <div>
+              <h3 className="text-xl font-semibold text-white">Ready to Scan</h3>
+              <p className="text-muted-foreground mt-2">Use the Scanner button in the bottom menu to open your camera.</p>
             </div>
-
-            <div className="absolute bottom-12 flex flex-col items-center space-y-6">
-              <div className="bg-black/60 backdrop-blur-md text-white text-sm font-medium py-2 px-6 rounded-full border border-white/10">
-                Position menu within the frame
-              </div>
-              <div className="flex items-center gap-8">
-                <button className="h-12 w-12 rounded-full bg-black/40 flex items-center justify-center text-white border border-white/20 hover:bg-black/60">
-                  <ImageIcon className="h-5 w-5" />
-                </button>
-                <button 
-                  onClick={handleScanClick}
-                  className="h-20 w-20 rounded-full border-4 border-white flex items-center justify-center hover:scale-95 transition-transform"
-                >
-                  <div className="h-16 w-16 bg-white rounded-full"></div>
-                </button>
-                <button className="h-12 w-12 rounded-full bg-black/40 flex items-center justify-center text-white border border-white/20 hover:bg-black/60">
-                  <RotateCcw className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
+            <button 
+              onClick={() => document.getElementById("global-camera-input")?.click()}
+              className="mt-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 px-8 rounded-full"
+            >
+              Open Camera
+            </button>
           </motion.div>
         )}
 
