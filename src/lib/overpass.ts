@@ -1,3 +1,5 @@
+import { fetchWithRetry } from "@/lib/retry";
+
 export type OSMNode = {
   id: number;
   lat: number;
@@ -21,18 +23,17 @@ export async function fetchNearbyRestaurants(lat: number, lon: number, radiusMet
   `;
 
   try {
-    const response = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body: query,
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      }
-    });
-
-    if (!response.ok) {
-      console.error("Overpass API error", response.statusText);
-      return [];
-    }
+    const response = await fetchWithRetry(
+      "https://overpass-api.de/api/interpreter",
+      {
+        method: "POST",
+        body: query,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        }
+      },
+      { maxRetries: 2, baseDelayMs: 800, label: "Overpass" }
+    );
 
     const data = await response.json();
     
