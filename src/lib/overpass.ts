@@ -37,11 +37,19 @@ export async function fetchNearbyRestaurants(lat: number, lon: number, radiusMet
     const data = await response.json();
     
     // Filter to only those with a name and coordinate
-    const validElements = (data.elements || []).filter((el: any) => {
+    type OSMElement = {
+      id: number;
+      type: string;
+      lat?: number;
+      lon?: number;
+      center?: { lat: number; lon: number };
+      tags?: Record<string, string>;
+    };
+    const validElements = (data.elements || []).filter((el: OSMElement) => {
       return el.tags && el.tags.name && (el.lat || el.center?.lat);
     });
     
-    return validElements.map((el: any) => ({
+    return validElements.map((el: OSMElement) => ({
       id: el.id,
       lat: el.lat || el.center?.lat,
       lon: el.lon || el.center?.lon,

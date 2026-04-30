@@ -99,8 +99,13 @@ export async function analyzeRestaurants({
     // Map back to our format and filter out any hallucinations
     const validResults = parsed.results
       .map((r: Record<string, unknown>) => {
-        // Find the original OSM node if it wasn't fallback
-        const osmNode = isFallback ? null : restaurants.find((node) => node.id.toString() === String(r.id));
+        // Match by exact ID, or fallback to exact name if Gemini reformatted the ID
+        const osmNode = isFallback 
+          ? null 
+          : restaurants.find((node) => 
+              node.id.toString() === String(r.id) || 
+              (node.tags.name && r.name && node.tags.name.toLowerCase() === String(r.name).toLowerCase())
+            );
         
         // If it's not a fallback and we can't find the OSM node, Gemini hallucinated it. Drop it.
         if (!isFallback && !osmNode) {
@@ -137,44 +142,29 @@ function buildPrompt(
   criteria: Criterion[],
   isFallback: boolean
 ) {
-  const policy = criteria.map((c) => ({
-    label: c.label,
-    rule: c.negativePrompt,
-    cautions: c.hiddenRisks,
-  }));
+  // Compact criteria: only label + core rule (no hiddenRisks — those are for menu scanning, not restaurant picking)
+  const policy = criteria.map((c) => `${c.label}: ${c.negativePrompt}`).join("\n");
 
   let dataSection = "";
   if (isFallback) {
-    dataSection = `The user is in or near: ${locationContext || "an unknown location"}.
-Since we don't have a specific list of nearby restaurants, suggest up to 5 well-known restaurants or chains in that area that are very good at accommodating these specific dietary standards. If the location is unknown or vague, suggest global/national chains as examples. Generate a unique ID (like 'ai-1', 'ai-2') for each.`;
+    dataSection = `Location: ${locationContext || "unknown"}. No nearby list available. Suggest up to 5 well-known restaurants or chains in that area suited to these standards. Generate IDs like ai-1, ai-2.`;
   } else {
-    dataSection = `Here is a list of real restaurants near the user:
-${restaurants
-  .map((r) => `- ID: ${r.id} | Name: ${r.tags.name} | Cuisine: ${r.tags.cuisine || "Unknown"}`)
-  .join("\n")}
+    // Compact format: one line per restaurant, pipe-delimited, no repeated labels
+    const lines = restaurants.map(
+      (r) => `${r.id}|${r.tags.name}|${r.tags.cuisine || "?"}`
+    );
 
-Select the top 3-8 restaurants from this exact list that are most likely to accommodate the user's dietary standards. 
-CRITICAL RULE: You are strictly forbidden from recommending any restaurant that is NOT explicitly on this list. If only 1 or 2 restaurants on this list are good matches, ONLY return those. You may return up to 8 if they are exceptionally good matches. Do not invent, guess, or hallucinate other restaurants. Only use the exact IDs provided.`;
+    dataSection = `Nearby restaurants (id|name|cuisine):\n${lines.join("\n")}\n\nPick the top 3-8 best matches from this list. Use ONLY these exact IDs. If a cuisine is "?", infer from the name. Do not invent restaurants not on this list.`;
   }
 
-  return `
-You are Double Check, a dietary restaurant advisor. Your job is to recommend the best dining options based on specific dietary restrictions.
+  return `Dietary restaurant advisor. Recommend dining options matching these standards.
 
-USER DIETARY STANDARDS:
-${JSON.stringify(policy, null, 2)}
+STANDARDS:
+${policy}
 
 ${dataSection}
 
-For each restaurant you select, provide:
-1. "id": The exact ID provided in the list (or your generated one if no list was provided).
-2. "name": The exact name.
-3. "cuisine": The type of food they serve.
-4. "matchSummary": A confident, concise (1-2 sentences) explanation of WHY this is a good choice for these specific standards. Mention what kind of dishes they can safely order.
-5. "cautions": An array of 1-3 strings. Things they still need to watch out for based on the standards' cautions (e.g. "Ask if they use dedicated fryers", "Check if the sauce uses fish sauce").
-6. "confidence": "high", "medium", or "low".
-
-Return ONLY the JSON matching the schema.
-`.trim();
+Per result: id, name, cuisine, matchSummary (1-2 sentences why it's good), cautions (1-3 things to verify), confidence (high/medium/low). JSON only.`;
 }
 
 function parseGeminiJson(text: string): unknown {

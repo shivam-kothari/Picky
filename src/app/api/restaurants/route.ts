@@ -3,6 +3,7 @@ import { fetchNearbyRestaurants, calculateDistance } from "@/lib/overpass";
 import { reverseGeocode } from "@/lib/nominatim";
 import { analyzeRestaurants } from "@/lib/gemini-restaurants";
 import { getCriterionById } from "@/lib/criteria";
+import { preFilterRestaurants } from "@/lib/cuisine-filter";
 import type { RestaurantSearchRequest, RestaurantSearchResponse } from "@/lib/restaurants";
 
 export const runtime = "nodejs";
@@ -28,37 +29,39 @@ export async function POST(req: Request) {
       .map(getCriterionById)
       .filter((c) => c !== undefined);
 
-    // 1. Try to get real restaurants from Overpass API
-    let restaurants = await fetchNearbyRestaurants(lat, lon, 2500);
+    // 1. Get real restaurants from Overpass API
+    const restaurants = await fetchNearbyRestaurants(lat, lon, 2500);
     
-    // Sort by distance and cap at 100 to give Gemini a large, relevant pool
+    // Sort by distance (closest first)
     if (restaurants.length > 0) {
       restaurants.sort((a, b) => {
         const distA = calculateDistance(lat, lon, a.lat, a.lon);
         const distB = calculateDistance(lat, lon, b.lat, b.lon);
         return distA - distB;
       });
-      if (restaurants.length > 100) {
-        restaurants = restaurants.slice(0, 100);
-      }
     }
 
-    // 2. If no restaurants found, fallback to getting location context for pure AI suggestions
+    // 2. Pre-filter: remove obvious mismatches and prioritise likely matches.
+    //    This dramatically reduces the token payload sent to Gemini.
+    const { candidates, filteredOut } = preFilterRestaurants(restaurants, criteriaIds);
+    console.log(`Pre-filter: ${restaurants.length} OSM → ${candidates.length} candidates (${filteredOut} eliminated)`);
+
+    // 3. If no candidates remain, fallback to location context for AI suggestions
     let locationContext: string | null = null;
-    if (restaurants.length === 0) {
+    if (candidates.length === 0) {
       locationContext = await reverseGeocode(lat, lon);
     }
 
-    // 3. Ask Gemini to filter, recommend, and explain
+    // 4. Ask Gemini to filter, recommend, and explain
     const results = await analyzeRestaurants({
-      restaurants,
+      restaurants: candidates,
       locationContext,
       criteria,
     });
 
     const response: RestaurantSearchResponse = {
       restaurants: results,
-      fallbackUsed: restaurants.length === 0,
+      fallbackUsed: candidates.length === 0,
     };
 
     return NextResponse.json(response);
