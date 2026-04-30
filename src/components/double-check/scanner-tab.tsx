@@ -2,10 +2,10 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Image as ImageIcon, RotateCcw, Zap } from "lucide-react";
+import { Image as ImageIcon } from "lucide-react";
 
 import { prepareScanImage } from "@/lib/image-prep";
-import { createNoStandardsVerdict, createVerifyVerdict, type ScanVerdict } from "@/lib/scan";
+import { createVerifyVerdict, type ScanVerdict } from "@/lib/scan";
 
 import { VerdictCard } from "./verdict-card";
 import { ImageCropper } from "./image-cropper";
@@ -57,7 +57,7 @@ export function ScannerTab({ active, pendingFile, clearPendingFile, onScanComple
     let prepared;
     try {
       prepared = await prepareScanImage(file);
-    } catch (err) {
+    } catch {
       if (scanIdRef.current !== scanId) return;
       setState("idle");
       return;

@@ -548,3 +548,14 @@ These are staged; each is a discrete next unit of work.
 - Scan contract: `src/lib/scan.ts`
 - Gemini adapter: `src/lib/gemini-scan.ts`
 - API route: `src/app/api/scan/route.ts`
+
+---
+
+## 15. Change log (Restaurant Finder, 2026-04-30)
+
+- **feat(nearby):** added a new "Nearby" tab that acts as a restaurant finder. It leverages the browser Geolocation API to find the user's location.
+- **feat(api):** implemented a hybrid backend approach. It first queries the free Overpass API (OpenStreetMap) to retrieve a list of real nearby restaurants, preventing AI hallucinations. It then passes these real locations to Gemini to filter and recommend based on the user's active dietary standards.
+- **feat(fallback):** if OSM data is sparse, it falls back to reverse geocoding via Nominatim and prompts Gemini for generalized city-wide recommendations.
+- **feat(ui):** added `NearbyTab` with a native location prompt, a 3-stage Labor Illusion loader, and a structured result list.
+- **refactor(nav):** updated `BottomNav` to include the `Nearby` tab and added a prominent shortcut to `HomeTab`.
+- **verify:** `tsc` and `eslint` clean. No additional paid APIs were added.

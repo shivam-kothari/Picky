@@ -1,8 +1,8 @@
-import { Home, Maximize, ShieldCheck, History } from "lucide-react";
+import { Home, Maximize, ShieldCheck, History, MapPin } from "lucide-react";
 
 type BottomNavProps = {
-  activeTab: "home" | "scan" | "standards" | "history";
-  onTabChange: (tab: "home" | "scan" | "standards" | "history") => void;
+  activeTab: "home" | "scan" | "standards" | "history" | "nearby";
+  onTabChange: (tab: "home" | "scan" | "standards" | "history" | "nearby") => void;
 };
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
@@ -10,6 +10,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
     { id: "home", label: "Home", Icon: Home },
     { id: "scan", label: "Scanner", Icon: Maximize },
     { id: "standards", label: "Standards", Icon: ShieldCheck },
+    { id: "nearby", label: "Nearby", Icon: MapPin },
     { id: "history", label: "History", Icon: History },
   ] as const;
 

@@ -1,7 +1,7 @@
-import { Maximize, ShieldCheck, History } from "lucide-react";
+import { Maximize, ShieldCheck, History, MapPin } from "lucide-react";
 
 type HomeTabProps = {
-  onTabChange: (tab: "home" | "scan" | "standards" | "history") => void;
+  onTabChange: (tab: "home" | "scan" | "standards" | "history" | "nearby") => void;
 };
 
 export function HomeTab({ onTabChange }: HomeTabProps) {
@@ -23,6 +23,16 @@ export function HomeTab({ onTabChange }: HomeTabProps) {
       </button>
 
       <div className="grid grid-cols-2 gap-4">
+        <button
+          onClick={() => onTabChange("nearby")}
+          className="bg-white border border-border rounded-2xl p-6 flex flex-col items-center justify-center space-y-3 shadow-sm hover:shadow-md transition-shadow active:scale-95 col-span-2"
+        >
+          <div className="bg-blue-100 p-3 rounded-full text-blue-600">
+            <MapPin className="h-6 w-6" />
+          </div>
+          <span className="font-semibold text-sm text-center">Find Safe Restaurants Nearby</span>
+        </button>
+
         <button
           onClick={() => onTabChange("standards")}
           className="bg-white border border-border rounded-2xl p-6 flex flex-col items-center justify-center space-y-3 shadow-sm hover:shadow-md transition-shadow active:scale-95"

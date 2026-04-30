@@ -7,9 +7,10 @@ import { HomeTab } from "@/components/double-check/home-tab";
 import { StandardsTab } from "@/components/double-check/standards-tab";
 import { ScannerTab } from "@/components/double-check/scanner-tab";
 import { VerdictCard } from "@/components/double-check/verdict-card";
+import { NearbyTab } from "@/components/double-check/nearby-tab";
 import type { ScanVerdict } from "@/lib/scan";
 
-export type TabState = "home" | "scan" | "standards" | "history";
+export type TabState = "home" | "scan" | "standards" | "history" | "nearby";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabState>("home");
@@ -57,7 +58,7 @@ export default function Home() {
 
   useEffect(() => {
     const hash = window.location.hash.replace("#", "") as TabState;
-    if (["scan", "standards", "history"].includes(hash)) {
+    if (["scan", "standards", "history", "nearby"].includes(hash)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(hash);
     }
@@ -67,7 +68,7 @@ export default function Home() {
         setActiveTab(event.state.tab);
       } else {
         const fallbackHash = window.location.hash.replace("#", "");
-        if (["scan", "standards", "history"].includes(fallbackHash)) {
+        if (["scan", "standards", "history", "nearby"].includes(fallbackHash)) {
           setActiveTab(fallbackHash as TabState);
         } else {
           setActiveTab("home");
@@ -157,6 +158,9 @@ export default function Home() {
                 </div>
               )}
             </div>
+          )}
+          {activeTab === "nearby" && (
+            <NearbyTab active={active} />
           )}
         </div>
       </main>
