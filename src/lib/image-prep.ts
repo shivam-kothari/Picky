@@ -16,8 +16,8 @@ type LoadedImage = {
 };
 
 const MAX_SOURCE_BYTES = 14 * 1024 * 1024;
-const MAX_DIMENSION = 768;
-const JPEG_QUALITY = 0.65;
+const MAX_DIMENSION = 1080;
+const JPEG_QUALITY = 0.82;
 
 export async function prepareScanImage(file: File): Promise<PreparedScanImage> {
   if (!file.type.startsWith("image/")) {
@@ -44,7 +44,6 @@ export async function prepareScanImage(file: File): Promise<PreparedScanImage> {
   context.fillRect(0, 0, width, height);
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
-  context.filter = "grayscale(100%)";
   context.drawImage(image.source, 0, 0, width, height);
   image.close();
 

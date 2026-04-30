@@ -6,6 +6,7 @@ import {
   type ScanMimeType,
   type ScanVerdict,
 } from "@/lib/scan";
+import { fetchWithRetry } from "@/lib/retry";
 
 type AnalyzeMenuImageInput = {
   imageBase64: string;
@@ -55,7 +56,7 @@ export async function analyzeMenuImage({
   const timeout = windowlessTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const response = await fetch(
+    const response = await fetchWithRetry(
       `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
@@ -86,15 +87,9 @@ export async function analyzeMenuImage({
             responseSchema: scanVerdictResponseSchema,
           },
         }),
-      }
+      },
+      { label: "Gemini Menu Scan" }
     );
-
-    if (!response.ok) {
-      return createVerifyVerdict(
-        criteria,
-        `Gemini returned HTTP ${response.status}. Verify this dish manually.`
-      );
-    }
 
     const json = (await response.json()) as GeminiResponse;
     const text = json.candidates?.[0]?.content?.parts?.find((part) => part.text)
@@ -120,10 +115,13 @@ export async function analyzeMenuImage({
 
 
     return verdict;
-  } catch {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "";
     return createVerifyVerdict(
       criteria,
-      "Double Check could not complete the live scan. Verify this dish manually."
+      msg.startsWith("HTTP") 
+        ? `Gemini returned ${msg}. Verify this dish manually.` 
+        : "Double Check could not complete the live scan. Verify this dish manually."
     );
   } finally {
     clearTimeout(timeout);
