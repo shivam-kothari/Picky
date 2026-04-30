@@ -74,7 +74,7 @@ export async function analyzeRestaurants({
             },
           ],
           generationConfig: {
-            temperature: 0.1,
+            temperature: 0.0,
             responseMimeType: "application/json",
             responseSchema: restaurantSchema,
           },
@@ -149,12 +149,11 @@ function buildPrompt(
   if (isFallback) {
     dataSection = `Location: ${locationContext || "unknown"}. No nearby list available. Suggest up to 5 well-known restaurants or chains in that area suited to these standards. Generate IDs like ai-1, ai-2.`;
   } else {
-    // Compact format: one line per restaurant, pipe-delimited, no repeated labels
     const lines = restaurants.map(
       (r) => `${r.id}|${r.tags.name}|${r.tags.cuisine || "?"}`
     );
 
-    dataSection = `Nearby restaurants (id|name|cuisine):\n${lines.join("\n")}\n\nPick the top 3-8 best matches from this list. Use ONLY these exact IDs. If a cuisine is "?", infer from the name. Do not invent restaurants not on this list.`;
+    dataSection = `Nearby restaurants (id|name|cuisine):\n${lines.join("\n")}\n\nYou MUST pick the top 3-8 best matches from this list. Even if none are perfect, you MUST recommend the most adaptable options. Use ONLY these exact IDs. If a cuisine is "?", infer from the name. Do not invent restaurants not on this list.`;
   }
 
   return `Dietary restaurant advisor. Recommend dining options matching these standards.
@@ -164,7 +163,7 @@ ${policy}
 
 ${dataSection}
 
-Per result: id, name, cuisine, matchSummary (1-2 sentences why it's good), cautions (1-3 things to verify), confidence (high/medium/low). JSON only.`;
+Per result: id, name, cuisine, matchSummary (1-2 sentences why it's good), cautions (1-3 things to verify), confidence (high/medium/low). JSON only. You must return at least 3 results.`;
 }
 
 function parseGeminiJson(text: string): unknown {
