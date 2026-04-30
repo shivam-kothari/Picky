@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Partial<RestaurantSearchRequest>;
-    const { lat, lon, criteriaIds } = body;
+    const { lat, lon, criteriaIds, excludeIds = [], excludeNames = [] } = body;
 
     if (!lat || !lon || !criteriaIds || !Array.isArray(criteriaIds)) {
       return NextResponse.json({ error: "Invalid request payload" }, { status: 400 });
@@ -30,7 +30,11 @@ export async function POST(req: Request) {
       .filter((c) => c !== undefined);
 
     // 1. Get real restaurants from Overpass API
-    const restaurants = await fetchNearbyRestaurants(lat, lon, 2500);
+    let restaurants = await fetchNearbyRestaurants(lat, lon, 2500);
+    
+    if (excludeIds.length > 0) {
+      restaurants = restaurants.filter(r => !excludeIds.includes(String(r.id)));
+    }
     
     // Sort by distance (closest first)
     if (restaurants.length > 0) {
@@ -57,6 +61,7 @@ export async function POST(req: Request) {
       restaurants: candidates,
       locationContext,
       criteria,
+      excludeNames,
     });
 
     const response: RestaurantSearchResponse = {

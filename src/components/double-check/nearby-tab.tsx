@@ -22,9 +22,12 @@ const SEARCHING_MESSAGES = [
 export function NearbyTab({ active }: NearbyTabProps) {
   const [state, setState] = useState<State>("idle");
   const [results, setResults] = useState<RestaurantResult[]>([]);
+  const [pageIndex, setPageIndex] = useState(0);
   const [fallbackUsed, setFallbackUsed] = useState(false);
   const [cachedResult, setCachedResult] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [excludeIds, setExcludeIds] = useState<string[]>([]);
+  const [excludeNames, setExcludeNames] = useState<string[]>([]);
   const [ticks, setTicks] = useState(0);
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator !== "undefined" ? navigator.onLine : true
@@ -38,6 +41,11 @@ export function NearbyTab({ active }: NearbyTabProps) {
     return SEARCHING_MESSAGES[messageIndex];
   }, [messageIndex]);
 
+  const PAGE_SIZE = 4;
+  const displayedResults = useMemo(() => {
+    return results.slice(pageIndex * PAGE_SIZE, (pageIndex + 1) * PAGE_SIZE);
+  }, [results, pageIndex]);
+
   // Track online/offline status
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -49,6 +57,12 @@ export function NearbyTab({ active }: NearbyTabProps) {
       window.removeEventListener("offline", handleOffline);
     };
   }, []);
+
+  // Clear exclude lists when dietary criteria changes
+  useEffect(() => {
+    setExcludeIds([]);
+    setExcludeNames([]);
+  }, [active]);
 
   useEffect(() => {
     if (state !== "searching" && state !== "locating") return;
@@ -71,7 +85,26 @@ export function NearbyTab({ active }: NearbyTabProps) {
     });
   };
 
-  const findRestaurants = (forceRefresh = false) => {
+  const handleFreshRecommendations = () => {
+    const nextPageIndex = pageIndex + 1;
+    
+    if (nextPageIndex * PAGE_SIZE < results.length) {
+      // We have enough local results, just paginate locally
+      setPageIndex(nextPageIndex);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      // Local pool exhausted, fetch from API
+      const newExcludeIds = [...excludeIds, ...results.filter(r => r.source === "osm").map(r => r.id)];
+      const newExcludeNames = [...excludeNames, ...results.map(r => r.name)];
+      
+      setExcludeIds(newExcludeIds);
+      setExcludeNames(newExcludeNames);
+      
+      findRestaurants(true, newExcludeIds, newExcludeNames);
+    }
+  };
+
+  const findRestaurants = (forceRefresh = false, currentExcludeIds: string[] = [], currentExcludeNames: string[] = []) => {
     if (active.size === 0) {
       setErrorMsg("Please select at least one dietary standard first.");
       setState("error");
@@ -106,6 +139,7 @@ export function NearbyTab({ active }: NearbyTabProps) {
           const cached = getCachedRestaurants(lat, lon, criteriaIds);
           if (cached) {
             setResults(cached.restaurants);
+            setPageIndex(0);
             setFallbackUsed(cached.fallbackUsed);
             setCachedResult(true);
             setState("result");
@@ -114,7 +148,7 @@ export function NearbyTab({ active }: NearbyTabProps) {
         }
 
         setState("searching");
-        fetchRestaurants(lat, lon);
+        fetchRestaurants(lat, lon, currentExcludeIds, currentExcludeNames);
       },
       () => {
         setErrorMsg("Unable to retrieve your location. Please check your browser permissions.");
@@ -124,13 +158,13 @@ export function NearbyTab({ active }: NearbyTabProps) {
     );
   };
 
-  const fetchRestaurants = async (lat: number, lon: number) => {
+  const fetchRestaurants = async (lat: number, lon: number, eIds: string[] = [], eNames: string[] = []) => {
     const criteriaIds = Array.from(active);
     try {
       const response = await fetch("/api/restaurants", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lat, lon, criteriaIds }),
+        body: JSON.stringify({ lat, lon, criteriaIds, excludeIds: eIds, excludeNames: eNames }),
       });
 
       if (!response.ok) {
@@ -139,6 +173,7 @@ export function NearbyTab({ active }: NearbyTabProps) {
 
       const data = (await response.json()) as RestaurantSearchResponse;
       setResults(data.restaurants);
+      setPageIndex(0);
       setFallbackUsed(data.fallbackUsed);
       setState("result");
 
@@ -256,7 +291,7 @@ export function NearbyTab({ active }: NearbyTabProps) {
         </div>
       ) : (
         <div className="space-y-4 pb-8">
-          {results.map((r, i) => (
+          {displayedResults.map((r, i) => (
             <div key={r.id || i} className="border border-border bg-white rounded-2xl p-5 shadow-sm space-y-3">
               <div className="flex justify-between items-start">
                 <div>
@@ -324,6 +359,16 @@ export function NearbyTab({ active }: NearbyTabProps) {
               </div>
             </div>
           ))}
+
+          <div className="pt-2 pb-6">
+            <button
+              onClick={handleFreshRecommendations}
+              className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-xl py-4 font-semibold shadow-sm transition-colors flex items-center justify-center gap-2 active:scale-95"
+            >
+              <RefreshCw className="h-5 w-5" />
+              Get fresh recommendations
+            </button>
+          </div>
         </div>
       )}
     </div>

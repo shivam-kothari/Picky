@@ -15,6 +15,8 @@ export type RestaurantSearchRequest = {
   lat: number;
   lon: number;
   criteriaIds: string[];
+  excludeIds?: string[];
+  excludeNames?: string[];
 };
 
 export type RestaurantSearchResponse = {

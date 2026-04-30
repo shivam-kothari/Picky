@@ -6,6 +6,7 @@ type AnalyzeRestaurantsInput = {
   restaurants: OSMNode[];
   locationContext: string | null;
   criteria: Criterion[];
+  excludeNames?: string[];
 };
 
 const GEMINI_API_VERSION = "v1beta";
@@ -41,6 +42,7 @@ export async function analyzeRestaurants({
   restaurants,
   locationContext,
   criteria,
+  excludeNames = [],
 }: AnalyzeRestaurantsInput): Promise<RestaurantResult[]> {
   const apiKey =
     process.env.GEMINI_API_KEY ??
@@ -56,7 +58,7 @@ export async function analyzeRestaurants({
 
   try {
     const isFallback = restaurants.length === 0;
-    const prompt = buildPrompt(restaurants, locationContext, criteria, isFallback);
+    const prompt = buildPrompt(restaurants, locationContext, criteria, isFallback, excludeNames);
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models/${DEFAULT_MODEL}:generateContent?key=${apiKey}`,
@@ -140,20 +142,22 @@ function buildPrompt(
   restaurants: OSMNode[],
   locationContext: string | null,
   criteria: Criterion[],
-  isFallback: boolean
+  isFallback: boolean,
+  excludeNames: string[]
 ) {
   // Compact criteria: only label + core rule (no hiddenRisks — those are for menu scanning, not restaurant picking)
   const policy = criteria.map((c) => `${c.label}: ${c.negativePrompt}`).join("\n");
+  const excludeText = excludeNames.length > 0 ? `\nDO NOT recommend these restaurants: ${excludeNames.join(", ")}` : "";
 
   let dataSection = "";
   if (isFallback) {
-    dataSection = `Location: ${locationContext || "unknown"}. No nearby list available. Suggest up to 5 well-known restaurants or chains in that area suited to these standards. Generate IDs like ai-1, ai-2.`;
+    dataSection = `Location: ${locationContext || "unknown"}. No nearby list available. Suggest up to 5 well-known restaurants or chains in that area suited to these standards.${excludeText}\nGenerate IDs like ai-1, ai-2.`;
   } else {
     const lines = restaurants.map(
       (r) => `${r.id}|${r.tags.name}|${r.tags.cuisine || "?"}`
     );
 
-    dataSection = `Nearby restaurants (id|name|cuisine):\n${lines.join("\n")}\n\nYou MUST pick the top 3-8 best matches from this list. Even if none are perfect, you MUST recommend the most adaptable options. Use ONLY these exact IDs. If a cuisine is "?", infer from the name. Do not invent restaurants not on this list.`;
+    dataSection = `Nearby restaurants (id|name|cuisine):\n${lines.join("\n")}\n\nYou MUST pick the top 3-8 best matches from this list. Even if none are perfect, you MUST recommend the most adaptable options. Use ONLY these exact IDs. If a cuisine is "?", infer from the name. Do not invent restaurants not on this list.${excludeText}`;
   }
 
   return `Dietary restaurant advisor. Recommend dining options matching these standards.
