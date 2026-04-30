@@ -167,7 +167,7 @@ export default function Home() {
             <StandardsTab 
               active={active} 
               onChange={setActive} 
-              onSave={() => handleTabChange("scan")} 
+              onSave={() => handleTabChange("home")} 
             />
           )}
           {activeTab === "scan" && (
