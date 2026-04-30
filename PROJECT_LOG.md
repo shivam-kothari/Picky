@@ -2,7 +2,7 @@
 
 > Durable reference for the Double Check codebase: what exists, why it exists, what we fixed, and how to run it. Read alongside `double-check-prd.md` (feature source of truth) and `.cursorrules` (coding conventions).
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-04-30
 **Next.js:** 16.2.4 (App Router, webpack dev, Turbopack build)
 **React:** 19.2.4
 **Tailwind:** v4 (via `@import "tailwindcss"`)
@@ -99,7 +99,10 @@ Double Check/
 └─ src/
    ├─ app/
    │  ├─ api/
-   │  │  └─ scan/route.ts        # POST /api/scan, validates request + returns ScanVerdict
+   │  │  ├─ restaurants/
+   │  │  │  └─ route.ts            # POST /api/restaurants, OSM + Gemini hybrid
+   │  │  └─ scan/
+   │  │     └─ route.ts            # POST /api/scan, validates request + returns ScanVerdict
    │  ├─ globals.css             # monochrome tokens (hex) + base layer
    │  ├─ layout.tsx              # Inter, metadata, title: "Double Check"
    │  └─ page.tsx                # tab controller, criteria sync, history state
@@ -107,9 +110,10 @@ Double Check/
    │  ├─ double-check/
    │  │  ├─ top-nav.tsx          # streamlined wordmark (icons removed)
    │  │  ├─ bottom-nav.tsx       # tab switcher + global camera trigger
-   │  │  ├─ home-tab.tsx         # welcome, scan button (direct camera), history/standards shortcuts
+   │  │  ├─ home-tab.tsx         # welcome, scan button, history/standards/nearby shortcuts
    │  │  ├─ standards-tab.tsx    # criteria selection list
    │  │  ├─ scanner-tab.tsx      # image prep + /api/scan + dot-loading sequence
+   │  │  ├─ nearby-tab.tsx       # geolocation + /api/restaurants + labor illusion
    │  │  ├─ image-cropper.tsx    # free-form rectangular crop (react-image-crop)
    │  │  └─ verdict-card.tsx     # item-by-item safety analysis display
    │  ├─ providers/
@@ -122,8 +126,12 @@ Double Check/
    └─ lib/
       ├─ criteria.ts             # Criterion[] policy source + scripts
       ├─ gemini-scan.ts          # server Gemini REST adapter (temperature: 0.0)
+      ├─ gemini-restaurants.ts   # server Gemini REST adapter for nearby places
       ├─ image-prep.ts           # client image resize/grayscale/compress
       ├─ motion.ts               # Variants: fadeUp, stagger, crossfade
+      ├─ nominatim.ts            # free reverse-geocoding helper
+      ├─ overpass.ts             # free OpenStreetMap (NWR) query client
+      ├─ restaurants.ts          # RestaurantResult types
       ├─ scan.ts                 # ScanRequest / ScanVerdict contract + validators
       └─ utils.ts                # cn()
 ```
@@ -139,9 +147,13 @@ Double Check/
 | `verdict-card.tsx` | Pure structured verdict renderer for `SAFE`, `VETOED`, and `VERIFY` results | No | `@/components/ui/card`, `@/lib/scan` |
 | `interrogator.tsx` | Renders EN/FR waitstaff scripts for each active criterion, language tabs, copy-to-clipboard | Yes | `@/lib/criteria`, `@/lib/motion` |
 | `app/api/scan/route.ts` | Validates scan request JSON, rejects bad input, delegates to Gemini adapter, returns `ScanVerdict` | No | `@/lib/gemini-scan`, `@/lib/scan` |
+| `app/api/restaurants/route.ts` | Validates restaurant search, queries Overpass, delegates to Gemini, returns `RestaurantResult[]` | No | `@/lib/overpass`, `@/lib/gemini-restaurants` |
+| `nearby-tab.tsx` | Handles browser Geolocation, triggers restaurant search API, renders results | Yes | `@/lib/restaurants` |
 | `lib/criteria.ts` | Typed single source of truth. `Criterion = { id, label, negativePrompt, hiddenRisks, unsafeIfPresent, uncertainIfPossible, script }`. Exports `CRITERIA` (readonly) + `getCriterionById()` | N/A | — |
 | `lib/scan.ts` | Shared API contract, Gemini response schema, request validation, verdict normalization, `VERIFY` fallback helpers | N/A | `@/lib/criteria` |
 | `lib/gemini-scan.ts` | Server-side Gemini REST adapter with structured output, timeout, prompt rules, and conservative safety fallback | N/A | `fetch`, `process.env`, `@/lib/scan` |
+| `lib/gemini-restaurants.ts` | Server-side Gemini REST adapter for restaurant recommendations with anti-hallucination logic | N/A | `fetch`, `@/lib/overpass` |
+| `lib/overpass.ts` | OpenStreetMap NWR client with center-point extraction and distance sorting | N/A | `fetch` |
 | `lib/image-prep.ts` | Browser-only image validation, resize, JPEG compression, base64 extraction | N/A | Canvas APIs |
 | `lib/motion.ts` | Shared `Variants` presets, `appleEase` bezier | N/A | `framer-motion` types |
 
@@ -556,6 +568,8 @@ These are staged; each is a discrete next unit of work.
 - **feat(nearby):** added a new "Nearby" tab that acts as a restaurant finder. It leverages the browser Geolocation API to find the user's location.
 - **feat(api):** implemented a hybrid backend approach. It first queries the free Overpass API (OpenStreetMap) to retrieve a list of real nearby restaurants, preventing AI hallucinations. It then passes these real locations to Gemini to filter and recommend based on the user's active dietary standards.
 - **feat(fallback):** if OSM data is sparse, it falls back to reverse geocoding via Nominatim and prompts Gemini for generalized city-wide recommendations.
-- **feat(ui):** added `NearbyTab` with a native location prompt, a 3-stage Labor Illusion loader, and a structured result list.
+- **feat(ui):** added `NearbyTab` with a native location prompt, a 4-stage Labor Illusion loader, and a structured result list with direct Google Maps search integration.
 - **refactor(nav):** updated `BottomNav` to include the `Nearby` tab and added a prominent shortcut to `HomeTab`.
-- **verify:** `tsc` and `eslint` clean. No additional paid APIs were added.
+- **fix(accuracy):** resolved an issue where Gemini would hallucinate out-of-state restaurants by enforcing a strict mapping rule: any recommendation whose ID does not exist in the local OpenStreetMap data is dropped before the UI layer.
+- **fix(coverage):** upgraded the map data funnel. Switched from `node` to `nwr` (Node, Way, Relation) queries to capture restaurants mapped as building outlines, increased fetch limits to 150 items, and replaced random shuffling with geographic distance sorting to ensure the AI always evaluates the closest available options first.
+- **verify:** `tsc` and `eslint` clean. Feature pushed to GitHub main branch. Dev server running on port 3000.
