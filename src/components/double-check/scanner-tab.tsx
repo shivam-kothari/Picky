@@ -15,6 +15,7 @@ type ScannerTabProps = {
   pendingFile?: File | null;
   clearPendingFile?: () => void;
   onScanComplete?: (verdict: ScanVerdict) => void;
+  activeEntryId?: string | null;
 };
 
 type ScanState = "idle" | "scanning" | "result";
@@ -26,7 +27,7 @@ const SCANNING_MESSAGES = [
   "Verifying culinary integrity",
 ];
 
-export function ScannerTab({ active, pendingFile, clearPendingFile, onScanComplete }: ScannerTabProps) {
+export function ScannerTab({ active, pendingFile, clearPendingFile, onScanComplete, activeEntryId }: ScannerTabProps) {
   const [state, setState] = useState<ScanState>("idle");
   const [ticks, setTicks] = useState(0);
   const [success, setSuccess] = useState(false);
@@ -145,10 +146,14 @@ export function ScannerTab({ active, pendingFile, clearPendingFile, onScanComple
   if (state === "result" && result) {
     return (
       <div className="flex-1 bg-background p-6">
-        <VerdictCard result={result} onScanAgain={() => {
-          setState("idle");
-          document.getElementById("global-camera-input")?.click();
-        }} />
+        <VerdictCard
+          result={result}
+          entryId={activeEntryId ?? undefined}
+          onScanAgain={() => {
+            setState("idle");
+            document.getElementById("global-camera-input")?.click();
+          }}
+        />
       </div>
     );
   }

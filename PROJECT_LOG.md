@@ -2,7 +2,7 @@
 
 > Single source of truth for the Double Check codebase: architecture, recent work, and operational guidelines. Read alongside `double-check-prd.md`.
 
-**Last updated:** 2026-04-30
+**Last updated:** 2026-05-01
 **Framework:** Next.js 16.2.4 (App Router)
 **Styling:** Tailwind v4 + Shadcn (Base UI)
 **Model:** Gemini 2.5 Flash (via REST)
@@ -42,6 +42,8 @@ src/
 │  │  ├─ nearby-tab.tsx          # Geolocation & finder
 │  │  ├─ history-view.tsx        # Persistent scan results
 │  │  ├─ image-cropper.tsx       # Crop isolation
+│  │  ├─ interrogator-panel.tsx  # Inline waitstaff question UI
+│  │  ├─ interrogator-fullscreen.tsx # Full-screen waiter mode
 │  │  ├─ top-nav.tsx             # Clickable brand navigation
 │  │  ├─ bottom-nav.tsx          # Tab switcher & camera trigger
 │  │  └─ verdict-card.tsx        # Results display
@@ -51,6 +53,9 @@ src/
 │  ├─ criteria.ts                # Policy source of truth (7 languages)
 │  ├─ gemini-scan.ts             # Menu analysis AI adapter (Temp 0.0)
 │  ├─ gemini-restaurants.ts      # Restaurant advisor AI adapter (Temp 0.0)
+│  ├─ interrogator.ts            # Deterministic Interrogator engine
+│  ├─ interrogator-preferences.ts # Interrogator local preferences
+│  ├─ interrogator.test.ts       # Deterministic engine unit tests
 │  ├─ cuisine-filter.ts          # Algorithmic pre-filtering
 │  ├─ overpass.ts                # OpenStreetMap client (with retries)
 │  ├─ restaurant-cache.ts        # 30-min results cache
@@ -59,6 +64,7 @@ src/
 │  ├─ image-prep.ts              # Browser-side resize/compress
 │  ├─ nominatim.ts               # Reverse geocoding
 │  └─ scan.ts                    # Schemas & types
+├─ vitest.config.ts              # Vitest runner configuration
 ```
 
 ### Component Roles
@@ -69,6 +75,13 @@ src/
 ---
 
 ## 3. Key Development Milestones
+
+### Deterministic Interrogator Release (2026-05-01)
+*   **Zero-LLM Interrogator UX:** Implemented a fully deterministic waitstaff verification flow with no additional Gemini calls.
+*   **Inline + Full-Screen Actions:** Added compact in-card questions, one-tap copy, language switching, and full-screen "show waiter" mode.
+*   **Outcome-Driven Reclassification:** Added local outcomes (`confirmed_safe`, `uncertain`, `confirmed_violation`) that immediately update dish guidance.
+*   **History-Level Outcome Memory:** Extended `scan-history` persistence to store per-item interrogation outcomes for future reliability features.
+*   **Deterministic Test Coverage:** Added Vitest and unit tests for ordering, language mapping/fallback, and outcome state transforms.
 
 ### Reliability & UX Hardening (2026-04-30)
 *   **Zero-Results Glitch Fixed:** Set AI temperature to `0.0` and mandated results in the prompt. This prevents the AI from being overly cautious and returning empty lists.
@@ -102,6 +115,7 @@ npm run dev
 ### Verification
 - `npx tsc --noEmit` (Type check)
 - `npm run lint` (Lint check)
+- `npm test` (Deterministic unit tests)
 
 ---
 

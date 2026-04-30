@@ -1,11 +1,51 @@
-import { AlertTriangle, CheckCircle, Leaf, Drumstick, Apple, Info, HelpCircle, Maximize } from "lucide-react";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Leaf,
+  Drumstick,
+  Apple,
+  Info,
+  HelpCircle,
+  Maximize,
+} from "lucide-react";
+
 import { CRITERIA } from "@/lib/criteria";
-import type { ScanVerdict } from "@/lib/scan";
+import {
+  applyOutcomeToItem,
+  makeItemKey,
+  type InterrogatorLanguage,
+  type InterrogatorOutcome,
+  type InterrogatorQuestion,
+} from "@/lib/interrogator";
+import {
+  getInterrogatorLanguage,
+  setInterrogatorLanguage,
+} from "@/lib/interrogator-preferences";
+import {
+  getScanItemOutcomes,
+  setScanItemOutcome,
+} from "@/lib/scan-history";
+import type { MenuItemVerdict, ScanVerdict } from "@/lib/scan";
+
+import { InterrogatorPanel } from "./interrogator-panel";
+import { InterrogatorFullscreen } from "./interrogator-fullscreen";
 
 type VerdictCardProps = {
   result: ScanVerdict;
+  entryId?: string;
   onScanAnother?: () => void;
   onScanAgain?: () => void;
+};
+
+type EffectiveItem = {
+  original: MenuItemVerdict;
+  effective: MenuItemVerdict;
+  outcome: InterrogatorOutcome | null;
+  index: number;
+  key: string;
 };
 
 const labelsById = new Map(CRITERIA.map((criterion) => [criterion.id, criterion.label]));
@@ -17,16 +57,94 @@ function getIcon(id: string) {
   return <CheckCircle className="h-4 w-4" />;
 }
 
-export function VerdictCard({ result, onScanAnother, onScanAgain }: VerdictCardProps) {
+export function VerdictCard({
+  result,
+  entryId,
+  onScanAnother,
+  onScanAgain,
+}: VerdictCardProps) {
   const handleScanAnother = onScanAnother || onScanAgain;
   const isNoStandards = result.selectedCriteria.length === 0;
+
+  const [outcomes, setOutcomes] = useState<
+    Record<string, InterrogatorOutcome>
+  >({});
+  const [language, setLanguage] = useState<InterrogatorLanguage>("en");
+  const [fullscreen, setFullscreen] = useState<{
+    item: MenuItemVerdict;
+    initialCriterionId?: string;
+    itemKey: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setLanguage(getInterrogatorLanguage());
+    }, 0);
+    return () => window.clearTimeout(handle);
+  }, []);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      if (!entryId) {
+        setOutcomes({});
+        return;
+      }
+      const stored = getScanItemOutcomes(entryId);
+      const next: Record<string, InterrogatorOutcome> = {};
+      for (const [key, record] of Object.entries(stored)) {
+        next[key] = record.outcome;
+      }
+      setOutcomes(next);
+    }, 0);
+    return () => window.clearTimeout(handle);
+  }, [entryId, result]);
+
+  const handleLanguageChange = (next: InterrogatorLanguage) => {
+    setLanguage(next);
+    setInterrogatorLanguage(next);
+  };
+
+  const handleOutcomeChange = (
+    itemKey: string,
+    nextOutcome: InterrogatorOutcome | null
+  ) => {
+    setOutcomes((current) => {
+      const updated = { ...current };
+      if (nextOutcome === null) {
+        delete updated[itemKey];
+      } else {
+        updated[itemKey] = nextOutcome;
+      }
+      return updated;
+    });
+
+    if (entryId) {
+      setScanItemOutcome(
+        entryId,
+        itemKey,
+        nextOutcome,
+        result.selectedCriteria
+      );
+    }
+  };
+
+  const effectiveItems: EffectiveItem[] = useMemo(() => {
+    return result.items.map((item, index) => {
+      const key = makeItemKey(item, index);
+      const outcome = outcomes[key] ?? null;
+      const effective = outcome ? applyOutcomeToItem(item, outcome) : item;
+      return { original: item, effective, outcome, index, key };
+    });
+  }, [result.items, outcomes]);
 
   if (isNoStandards) {
     return (
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="bg-white border border-border p-6 rounded-2xl shadow-sm text-center">
           <Info className="h-12 w-12 text-primary mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-foreground mb-2">No Standards Selected</h2>
+          <h2 className="text-xl font-bold text-foreground mb-2">
+            No Standards Selected
+          </h2>
           <p className="text-muted-foreground">{result.summary}</p>
         </div>
         {handleScanAnother && (
@@ -41,21 +159,34 @@ export function VerdictCard({ result, onScanAnother, onScanAgain }: VerdictCardP
     );
   }
 
-  const safeItems = result.items.filter((item) => item.status === "SAFE");
-  const vetoedItems = result.items.filter((item) => item.status === "VETOED");
-  const verifyItems = result.items.filter((item) => item.status === "VERIFY");
+  const safeItems = effectiveItems.filter(
+    (entry) => entry.effective.status === "SAFE"
+  );
+  const verifyItems = effectiveItems.filter(
+    (entry) => entry.effective.status === "VERIFY"
+  );
+  const vetoedItems = effectiveItems.filter(
+    (entry) => entry.effective.status === "VETOED"
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-lg mx-auto pb-12">
       <div className="space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Menu Analysis</h2>
-        <p className="text-muted-foreground text-sm leading-relaxed">{result.summary}</p>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">
+          Menu Analysis
+        </h2>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          {result.summary}
+        </p>
       </div>
 
       {result.selectedCriteria.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {result.selectedCriteria.map((id) => (
-            <div key={id} className="px-3 py-1.5 border border-border bg-white rounded-full flex items-center gap-2 text-xs font-medium text-foreground">
+            <div
+              key={id}
+              className="px-3 py-1.5 border border-border bg-white rounded-full flex items-center gap-2 text-xs font-medium text-foreground"
+            >
               {getIcon(id)}
               <span>{labelsById.get(id) || id}</span>
             </div>
@@ -70,51 +201,51 @@ export function VerdictCard({ result, onScanAnother, onScanAgain }: VerdictCardP
       )}
 
       {safeItems.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold text-secondary-foreground tracking-widest uppercase flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" /> Okay to Eat
-          </h3>
-          <div className="space-y-2">
-            {safeItems.map((item, i) => (
-              <div key={i} className="bg-secondary/20 border border-secondary/30 p-3 rounded-xl">
-                <p className="font-semibold text-secondary-foreground text-sm">{item.dishName}</p>
-                <p className="text-xs text-secondary-foreground/80 mt-1">{item.reason}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ItemSection
+          title="Okay to Eat"
+          Icon={CheckCircle}
+          tone="safe"
+          items={safeItems}
+          selectedCriteria={result.selectedCriteria}
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          onOutcomeChange={handleOutcomeChange}
+          onOpenFullscreen={(item, key, criterionId) =>
+            setFullscreen({ item, itemKey: key, initialCriterionId: criterionId })
+          }
+        />
       )}
 
       {verifyItems.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold text-yellow-700 tracking-widest uppercase flex items-center gap-2">
-            <HelpCircle className="h-4 w-4" /> Ask Waitstaff
-          </h3>
-          <div className="space-y-2">
-            {verifyItems.map((item, i) => (
-              <div key={i} className="bg-yellow-50 border border-yellow-200 p-3 rounded-xl">
-                <p className="font-semibold text-yellow-900 text-sm">{item.dishName}</p>
-                <p className="text-xs text-yellow-800 mt-1">{item.reason}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ItemSection
+          title="Ask Waitstaff"
+          Icon={HelpCircle}
+          tone="verify"
+          items={verifyItems}
+          selectedCriteria={result.selectedCriteria}
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          onOutcomeChange={handleOutcomeChange}
+          onOpenFullscreen={(item, key, criterionId) =>
+            setFullscreen({ item, itemKey: key, initialCriterionId: criterionId })
+          }
+        />
       )}
 
       {vetoedItems.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold text-destructive tracking-widest uppercase flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" /> Avoid
-          </h3>
-          <div className="space-y-2">
-            {vetoedItems.map((item, i) => (
-              <div key={i} className="bg-destructive/10 border border-destructive/20 p-3 rounded-xl">
-                <p className="font-semibold text-destructive text-sm">{item.dishName}</p>
-                <p className="text-xs text-destructive/80 mt-1">{item.reason}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <ItemSection
+          title="Avoid"
+          Icon={AlertTriangle}
+          tone="vetoed"
+          items={vetoedItems}
+          selectedCriteria={result.selectedCriteria}
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          onOutcomeChange={handleOutcomeChange}
+          onOpenFullscreen={(item, key, criterionId) =>
+            setFullscreen({ item, itemKey: key, initialCriterionId: criterionId })
+          }
+        />
       )}
 
       {handleScanAnother && (
@@ -128,6 +259,172 @@ export function VerdictCard({ result, onScanAnother, onScanAgain }: VerdictCardP
           </button>
         </div>
       )}
+
+      {fullscreen && (
+        <InterrogatorFullscreen
+          item={fullscreen.item}
+          selectedCriteriaIds={result.selectedCriteria}
+          language={language}
+          initialCriterionId={fullscreen.initialCriterionId}
+          onLanguageChange={handleLanguageChange}
+          onOutcomeChange={(outcome) =>
+            handleOutcomeChange(fullscreen.itemKey, outcome)
+          }
+          onClose={() => setFullscreen(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+type ItemSectionProps = {
+  title: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  tone: "safe" | "verify" | "vetoed";
+  items: EffectiveItem[];
+  selectedCriteria: readonly string[];
+  language: InterrogatorLanguage;
+  onLanguageChange: (next: InterrogatorLanguage) => void;
+  onOutcomeChange: (
+    itemKey: string,
+    outcome: InterrogatorOutcome | null
+  ) => void;
+  onOpenFullscreen: (
+    item: MenuItemVerdict,
+    itemKey: string,
+    criterionId?: string
+  ) => void;
+};
+
+function ItemSection({
+  title,
+  Icon,
+  tone,
+  items,
+  selectedCriteria,
+  language,
+  onLanguageChange,
+  onOutcomeChange,
+  onOpenFullscreen,
+}: ItemSectionProps) {
+  const headingClass =
+    tone === "safe"
+      ? "text-secondary-foreground"
+      : tone === "verify"
+      ? "text-yellow-700"
+      : "text-destructive";
+
+  const cardClass =
+    tone === "safe"
+      ? "bg-secondary/20 border-secondary/30"
+      : tone === "verify"
+      ? "bg-yellow-50 border-yellow-200"
+      : "bg-destructive/10 border-destructive/20";
+
+  const dishNameClass =
+    tone === "safe"
+      ? "text-secondary-foreground"
+      : tone === "verify"
+      ? "text-yellow-900"
+      : "text-destructive";
+
+  const reasonClass =
+    tone === "safe"
+      ? "text-secondary-foreground/80"
+      : tone === "verify"
+      ? "text-yellow-800"
+      : "text-destructive/80";
+
+  return (
+    <div className="space-y-3">
+      <h3
+        className={`text-xs font-bold tracking-widest uppercase flex items-center gap-2 ${headingClass}`}
+      >
+        <Icon className="h-4 w-4" /> {title}
+      </h3>
+      <div className="space-y-3">
+        {items.map((entry) => (
+          <ItemCard
+            key={entry.key}
+            entry={entry}
+            cardClass={cardClass}
+            dishNameClass={dishNameClass}
+            reasonClass={reasonClass}
+            selectedCriteria={selectedCriteria}
+            language={language}
+            onLanguageChange={onLanguageChange}
+            onOutcomeChange={onOutcomeChange}
+            onOpenFullscreen={onOpenFullscreen}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type ItemCardProps = {
+  entry: EffectiveItem;
+  cardClass: string;
+  dishNameClass: string;
+  reasonClass: string;
+  selectedCriteria: readonly string[];
+  language: InterrogatorLanguage;
+  onLanguageChange: (next: InterrogatorLanguage) => void;
+  onOutcomeChange: (
+    itemKey: string,
+    outcome: InterrogatorOutcome | null
+  ) => void;
+  onOpenFullscreen: (
+    item: MenuItemVerdict,
+    itemKey: string,
+    criterionId?: string
+  ) => void;
+};
+
+function ItemCard({
+  entry,
+  cardClass,
+  dishNameClass,
+  reasonClass,
+  selectedCriteria,
+  language,
+  onLanguageChange,
+  onOutcomeChange,
+  onOpenFullscreen,
+}: ItemCardProps) {
+  const { original, effective, outcome, key } = entry;
+  const wasReclassified = outcome !== null && original.status !== effective.status;
+
+  const handleOpenFullscreen = (question: InterrogatorQuestion) =>
+    onOpenFullscreen(original, key, question.criterionId);
+
+  return (
+    <div className={`p-3 rounded-xl border ${cardClass}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`font-semibold text-sm ${dishNameClass}`}>
+            {original.dishName}
+          </p>
+          <p className={`text-xs mt-1 ${reasonClass}`}>{original.reason}</p>
+        </div>
+        {wasReclassified && (
+          <span className="shrink-0 rounded-full border border-border bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            Updated
+          </span>
+        )}
+      </div>
+
+      {effective.status !== "SAFE" || outcome !== null ? (
+        <InterrogatorPanel
+          item={original}
+          selectedCriteriaIds={selectedCriteria}
+          language={language}
+          outcome={outcome}
+          onLanguageChange={onLanguageChange}
+          onOutcomeChange={(next) => onOutcomeChange(key, next)}
+          onOpenFullscreen={handleOpenFullscreen}
+        />
+      ) : null}
     </div>
   );
 }

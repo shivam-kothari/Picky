@@ -26,6 +26,7 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [history, setHistory] = useState<ScanHistoryEntry[]>([]);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [activeScanEntryId, setActiveScanEntryId] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator !== "undefined" ? navigator.onLine : true
   );
@@ -126,7 +127,8 @@ export default function Home() {
   };
 
   const handleScanComplete = useCallback((verdict: ScanVerdict) => {
-    addScanToHistory(verdict);
+    const id = addScanToHistory(verdict);
+    setActiveScanEntryId(id);
     setHistory(getScanHistory());
   }, []);
 
@@ -176,6 +178,7 @@ export default function Home() {
               pendingFile={pendingFile}
               clearPendingFile={() => setPendingFile(null)}
               onScanComplete={handleScanComplete}
+              activeEntryId={activeScanEntryId}
             />
           )}
           {activeTab === "history" && (
@@ -248,7 +251,7 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="p-6">
-                        <VerdictCard result={entry.verdict} />
+                        <VerdictCard result={entry.verdict} entryId={entry.id} />
                       </div>
                     </div>
                   ))}
