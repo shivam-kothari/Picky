@@ -1,11 +1,9 @@
 import { CRITERIA, type Criterion } from "@/lib/criteria";
 
 export const SCAN_STATUSES = ["SAFE", "VETOED", "VERIFY"] as const;
-export const CONFIDENCE_LEVELS = ["low", "medium", "high"] as const;
 export const SCAN_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
 export type ScanStatus = (typeof SCAN_STATUSES)[number];
-export type ConfidenceLevel = (typeof CONFIDENCE_LEVELS)[number];
 export type ScanMimeType = (typeof SCAN_MIME_TYPES)[number];
 
 export type ScanRequest = {
