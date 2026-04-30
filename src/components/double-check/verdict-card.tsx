@@ -10,12 +10,16 @@ import {
   Info,
   HelpCircle,
   Maximize,
+  MessagesSquare,
+  Copy,
 } from "lucide-react";
 
 import { CRITERIA } from "@/lib/criteria";
 import {
   applyOutcomeToItem,
   makeItemKey,
+  buildInterrogatorPlan,
+  pickFeaturedQuestion,
   type InterrogatorLanguage,
   type InterrogatorOutcome,
   type InterrogatorQuestion,
@@ -30,7 +34,12 @@ import {
 } from "@/lib/scan-history";
 import type { MenuItemVerdict, ScanVerdict } from "@/lib/scan";
 
-import { InterrogatorPanel } from "./interrogator-panel";
+import {
+  InterrogatorPanel,
+  LanguageSelector,
+  OutcomeButtons,
+  OutcomeBadge,
+} from "./interrogator-panel";
 import { InterrogatorFullscreen } from "./interrogator-fullscreen";
 
 type VerdictCardProps = {
@@ -307,6 +316,38 @@ function ItemSection({
   onOutcomeChange,
   onOpenFullscreen,
 }: ItemSectionProps) {
+  const { groups, noQuestion } = useMemo(() => {
+    const map = new Map<
+      string,
+      { question: InterrogatorQuestion; items: EffectiveItem[] }
+    >();
+    const noQ: EffectiveItem[] = [];
+
+    items.forEach((entry) => {
+      const showPanel =
+        entry.effective.status !== "SAFE" || entry.outcome !== null;
+
+      if (showPanel) {
+        const plan = buildInterrogatorPlan(
+          entry.original,
+          selectedCriteria,
+          language
+        );
+        const featured = pickFeaturedQuestion(plan);
+        if (featured) {
+          if (!map.has(featured.criterionId)) {
+            map.set(featured.criterionId, { question: featured, items: [] });
+          }
+          map.get(featured.criterionId)!.items.push(entry);
+          return;
+        }
+      }
+      noQ.push(entry);
+    });
+
+    return { groups: Array.from(map.values()), noQuestion: noQ };
+  }, [items, selectedCriteria, language]);
+
   const headingClass =
     tone === "safe"
       ? "text-secondary-foreground"
@@ -343,7 +384,22 @@ function ItemSection({
         <Icon className="h-4 w-4" /> {title}
       </h3>
       <div className="space-y-3">
-        {items.map((entry) => (
+        {groups.map((group) => (
+          <GroupedQuestionCard
+            key={group.question.criterionId}
+            question={group.question}
+            items={group.items}
+            cardClass={cardClass}
+            dishNameClass={dishNameClass}
+            reasonClass={reasonClass}
+            selectedCriteria={selectedCriteria}
+            language={language}
+            onLanguageChange={onLanguageChange}
+            onOutcomeChange={onOutcomeChange}
+            onOpenFullscreen={onOpenFullscreen}
+          />
+        ))}
+        {noQuestion.map((entry) => (
           <ItemCard
             key={entry.key}
             entry={entry}
@@ -425,6 +481,128 @@ function ItemCard({
           onOpenFullscreen={handleOpenFullscreen}
         />
       ) : null}
+    </div>
+  );
+}
+
+function GroupedQuestionCard({
+  question,
+  items,
+  cardClass,
+  dishNameClass,
+  reasonClass,
+  selectedCriteria,
+  language,
+  onLanguageChange,
+  onOutcomeChange,
+  onOpenFullscreen,
+}: {
+  question: InterrogatorQuestion;
+  items: EffectiveItem[];
+  cardClass: string;
+  dishNameClass: string;
+  reasonClass: string;
+  selectedCriteria: readonly string[];
+  language: InterrogatorLanguage;
+  onLanguageChange: (next: InterrogatorLanguage) => void;
+  onOutcomeChange: (
+    itemKey: string,
+    outcome: InterrogatorOutcome | null
+  ) => void;
+  onOpenFullscreen: (
+    item: MenuItemVerdict,
+    itemKey: string,
+    criterionId?: string
+  ) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(question.question);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {}
+  };
+
+  return (
+    <div className={`p-4 rounded-xl border ${cardClass}`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 text-foreground">
+          <MessagesSquare className="h-4 w-4 text-primary" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            {question.criterionLabel} Check
+          </span>
+        </div>
+        <LanguageSelector
+          language={language}
+          onLanguageChange={onLanguageChange}
+        />
+      </div>
+
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <p className="text-sm leading-snug text-foreground font-medium">
+          {question.question}
+        </p>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground bg-white/50"
+          aria-label="Copy question"
+        >
+          {copied ? (
+            <CheckCircle className="h-4 w-4 text-primary" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+
+      <div className="space-y-2 mt-4 pt-4 border-t border-border/50">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+          Applies to {items.length} dish{items.length === 1 ? "" : "es"}
+        </p>
+        {items.map((entry) => {
+          const { original, effective, outcome, key } = entry;
+          const wasReclassified =
+            outcome !== null && original.status !== effective.status;
+
+          return (
+            <div
+              key={key}
+              className="bg-white/60 p-3 rounded-lg border border-border/40"
+            >
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="min-w-0">
+                  <p className={`font-semibold text-sm ${dishNameClass}`}>
+                    {original.dishName}
+                  </p>
+                  <p className={`text-xs mt-0.5 ${reasonClass}`}>
+                    {original.reason}
+                  </p>
+                </div>
+                {wasReclassified && (
+                  <span className="shrink-0 rounded-full border border-border bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Updated
+                  </span>
+                )}
+              </div>
+
+              {outcome ? (
+                <OutcomeBadge
+                  outcome={outcome}
+                  onClear={() => onOutcomeChange(key, null)}
+                />
+              ) : (
+                <OutcomeButtons
+                  onSelect={(out) => onOutcomeChange(key, out)}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

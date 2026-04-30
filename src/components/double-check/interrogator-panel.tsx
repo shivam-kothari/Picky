@@ -254,7 +254,7 @@ function FeaturedQuestion({
   );
 }
 
-function LanguageSelector({
+export function LanguageSelector({
   language,
   onLanguageChange,
 }: {
@@ -291,7 +291,7 @@ function LanguageSelector({
   );
 }
 
-function OutcomeButtons({
+export function OutcomeButtons({
   onSelect,
 }: {
   onSelect: (outcome: InterrogatorOutcome) => void;
@@ -352,7 +352,7 @@ function OutcomeButton({
   );
 }
 
-function OutcomeBadge({
+export function OutcomeBadge({
   outcome,
   onClear,
 }: {
